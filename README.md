@@ -48,5 +48,11 @@ CLI flags override config file values.
 
 ## Requirements
 
-- Linux with X11
-- `libxcb` installed on the system
+**Linux:** X11 with `libxcb` installed.
+
+**macOS:** [XQuartz](https://www.xquartz.org) must be installed and running. Launch it before running augenblick:
+
+```bash
+open -a XQuartz
+DISPLAY=:0 augenblick
+```
