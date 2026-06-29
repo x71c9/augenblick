@@ -28,14 +28,18 @@ jobs:
         with:
           ref: ${{ inputs.version }}
       - name: Install system dependencies
-        # libxcb from Homebrew provides headers and libs needed for linking
-        run: brew install libxcb
+        # XQuartz provides libxcb on macOS — required at build and runtime
+        run: brew install --cask xquartz
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Add target
         run: rustup target add ${{ matrix.target }}
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          # Point the linker to XQuartz's libxcb
+          export LIBRARY_PATH="/opt/X11/lib:${LIBRARY_PATH:-}"
+          export PKG_CONFIG_PATH="/opt/X11/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          cargo build --release --target ${{ matrix.target }}
       - name: Rename and compress binary
         run: |
           mkdir -p bin
