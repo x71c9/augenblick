@@ -17,6 +17,8 @@ pre-release-commit-message = "chore(release): release v{{version}}"
 x11rb = { version = "0.13", features = ["allow-unsafe-code"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
 smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 wayland-client = "0.31"

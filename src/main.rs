@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   cfg.apply_overrides(&overrides);
 
   let backend: Box<dyn Backend> = match detect()? {
+    #[cfg(not(target_os = "macos"))]
     DisplayServer::Wayland => {
       println!("augenblick: detected Wayland");
       Box::new(backend::wayland::WaylandBackend::new()?)
