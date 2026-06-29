@@ -27,6 +27,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.version }}
+      - name: Install system dependencies
+        # XQuartz provides libxcb on macOS
+        run: brew install xquartz
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Add target
