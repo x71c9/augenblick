@@ -41,6 +41,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        # augenblick links against libxcb (X11) — not needed in other projects
+        run: sudo apt-get update && sudo apt-get install -y libxcb1-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
