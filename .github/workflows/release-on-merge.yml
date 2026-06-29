@@ -12,7 +12,6 @@ jobs:
     with:
       crate_name: augenblick
       binary_name: augenblick
-      homebrew_event: update-augenblick
       pkgdesc: "Fullscreen eye-blink overlay for X11 and Wayland"
       aur_depends: "'glibc' 'libxcb'"
       nur_build_inputs: "libxcb"
