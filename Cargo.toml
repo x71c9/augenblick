@@ -3,6 +3,15 @@ name = "augenblick"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "Fullscreen eye-blink overlay for X11"
+repository = "https://github.com/x71c9/augenblick"
+authors = ["x71c9 <mail@x71c9.com>"]
+
+[package.metadata.release]
+push = true
+publish = true
+tag-message = "chore(release): v{{version}}"
+pre-release-commit-message = "chore(release): release v{{version}}"
 
 [dependencies]
 x11rb = { version = "0.13", features = ["allow-unsafe-code"] }
