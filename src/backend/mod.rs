@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "macos"))]
 pub mod wayland;
 pub mod x11;
 
@@ -8,11 +9,13 @@ pub trait Backend {
 }
 
 pub enum DisplayServer {
+  #[cfg(not(target_os = "macos"))]
   Wayland,
   X11,
 }
 
 pub fn detect() -> Result<DisplayServer, String> {
+  #[cfg(not(target_os = "macos"))]
   if std::env::var("WAYLAND_DISPLAY").is_ok() {
     return Ok(DisplayServer::Wayland);
   }
