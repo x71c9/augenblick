@@ -56,4 +56,3 @@ CLI flags override config file values.
 open -a XQuartz
 DISPLAY=:0 augenblick
 ```
-
