@@ -23,6 +23,10 @@ jobs:
           # PAT must have this repo enabled at https://github.com/settings/personal-access-tokens
           token: ${{ secrets.BYPASS_BRANCH_RULE_PAT }}
 
+      - name: Install system dependencies
+        # augenblick links against libxcb (X11) — not needed in other projects
+        run: sudo apt-get update && sudo apt-get install -y libxcb1-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
