@@ -28,8 +28,8 @@ jobs:
         with:
           ref: ${{ inputs.version }}
       - name: Install system dependencies
-        # XQuartz provides libxcb on macOS
-        run: brew install xquartz
+        # libxcb from Homebrew provides headers and libs needed for linking
+        run: brew install libxcb
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Add target
