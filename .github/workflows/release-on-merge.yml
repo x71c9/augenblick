@@ -8,7 +8,7 @@ permissions:
   contents: write
 jobs:
   release:
-    uses: x71c9/ci-rust/.github/workflows/release-on-merge.yml@main
+    uses: x71c9/ci-rust/.github/workflows/release-on-merge.yml@master
     with:
       crate_name: augenblick
       binary_name: augenblick
