@@ -3,7 +3,7 @@ name = "augenblick"
 version = "0.1.3"
 edition = "2024"
 license = "MIT"
-description = "Fullscreen eye-blink overlay for X11"
+description = "Fullscreen eye-blink overlay for X11 and Wayland"
 repository = "https://github.com/x71c9/augenblick"
 authors = ["x71c9 <mail@x71c9.com>"]
 
@@ -17,3 +17,6 @@ pre-release-commit-message = "chore(release): release v{{version}}"
 x11rb = { version = "0.13", features = ["allow-unsafe-code"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+wayland-client = "0.31"
