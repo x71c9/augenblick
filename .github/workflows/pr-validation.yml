@@ -11,4 +11,4 @@ jobs:
   validate:
     uses: x71c9/ci-rust/.github/workflows/pr-validation.yml@master
     with:
-      extra_apt_packages: "libxcb1-dev libwayland-dev"
+      repo: ${{ github.event.repository.name }}
