@@ -1,0 +1,8 @@
+crate_name          = "augenblick"
+binary_name         = "augenblick"
+pkgdesc             = "Fullscreen eye-blink overlay for X11 and Wayland"
+aur_depends         = "'glibc' 'libxcb'"
+nur_build_inputs    = "libxcb"
+extra_apt_packages  = "libxcb1-dev libwayland-dev"
+macos_extra_brew    = "--cask xquartz"
+macos_extra_env     = "LIBRARY_PATH=/opt/X11/lib PKG_CONFIG_PATH=/opt/X11/lib/pkgconfig"
