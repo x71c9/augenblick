@@ -9,6 +9,7 @@ pkgs.mkShell {
     pkgs.libxcb
   ];
   shellHook = ''
+    export PATH="$PWD/scripts:$PATH"
     bash scripts/fetch-rebase.sh
     echo "cargo: $(cargo -V) | rustc: $(rustc -V)"
     echo "rustfmt: $(rustfmt --version) | clippy: $(cargo clippy --version)"
