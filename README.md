@@ -59,10 +59,11 @@ Or prebuilt binary:
 ```bash
 yay -S augenblick-bin
 ```
+
 ### crates.io — Cargo
 
 ```bash
-cargo install PKGCRATE
+cargo install augenblick
 ```
 
 ### macOS — Homebrew
