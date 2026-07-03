@@ -3,6 +3,7 @@ use std::thread;
 use std::time::Duration;
 use x11rb::COPY_FROM_PARENT;
 use x11rb::connection::Connection;
+use x11rb::protocol::shape::{self, ConnectionExt as _};
 use x11rb::protocol::xproto::*;
 use x11rb::wrapper::ConnectionExt as _;
 
@@ -62,6 +63,18 @@ fn make_lid(
   )?;
 
   conn.create_gc(gc, win, &CreateGCAux::new().foreground(color))?;
+
+  // Empty input shape: the window is purely visual and never receives
+  // clicks or keyboard input, so it can't steal or disturb window focus.
+  conn.shape_rectangles(
+    shape::SO::SET,
+    shape::SK::INPUT,
+    ClipOrdering::UNSORTED,
+    win,
+    0,
+    0,
+    &[],
+  )?;
 
   let net_wm_window_type = intern(conn, "_NET_WM_WINDOW_TYPE");
   let net_wm_window_type_notification =
