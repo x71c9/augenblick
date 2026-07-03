@@ -75,6 +75,7 @@ pub struct CliOverrides {
 pub struct Args {
   pub config_path: String,
   pub overrides: CliOverrides,
+  pub count: Option<u64>,
 }
 
 pub fn default_config_path() -> String {
@@ -86,11 +87,16 @@ pub fn parse_args() -> Result<Args, String> {
   let mut args = std::env::args().skip(1).peekable();
   let mut config_path = default_config_path();
   let mut overrides = CliOverrides::default();
+  let mut count = None;
 
   while let Some(arg) = args.next() {
     match arg.as_str() {
       "-c" => {
         config_path = args.next().ok_or("-c requires a path")?;
+      }
+      "-n" => {
+        let v = args.next().ok_or("-n requires a value")?;
+        count = Some(v.parse().map_err(|_| "-n must be a number")?);
       }
       "--sleep_secs" => {
         let v = args.next().ok_or("--sleep_secs requires a value")?;
@@ -117,6 +123,7 @@ pub fn parse_args() -> Result<Args, String> {
           "\n",
           "Options:\n",
           "  -c <path>               config file (default: ~/.config/augenblick/augenblick.toml)\n",
+          "  -n <n>                  number of blinks, then exit (default: run forever)\n",
           "  --sleep_secs <n>        seconds between blinks (default: 240)\n",
           "  --animation_frames <n>  frames per eyelid sweep (default: 20)\n",
           "  --color <hex>           eyelid color, e.g. #ff0000 (default: #000000)\n",
@@ -132,5 +139,6 @@ pub fn parse_args() -> Result<Args, String> {
   Ok(Args {
     config_path,
     overrides,
+    count,
   })
 }

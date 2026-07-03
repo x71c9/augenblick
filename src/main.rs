@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let Args {
     config_path,
     overrides,
+    count,
   } = parse_args().unwrap_or_else(|e| {
     eprintln!("augenblick: {e}");
     std::process::exit(1);
@@ -37,10 +38,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     cfg.color(),
   );
 
+  let mut blinks: u64 = 0;
   loop {
     if let Err(e) = backend.blink(&cfg) {
       eprintln!("blink error: {e}");
     }
+    blinks += 1;
+    if count.is_some_and(|n| blinks >= n) {
+      break;
+    }
     thread::sleep(Duration::from_secs(cfg.sleep_secs()));
   }
+
+  Ok(())
 }
