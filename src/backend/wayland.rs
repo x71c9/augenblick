@@ -336,11 +336,8 @@ fn draw_lid_raw(
     stride,
     wl_shm::Format::Argb8888,
   )?;
-  for pixel in canvas.chunks_exact_mut(4) {
-    pixel[0] = b;
-    pixel[1] = g;
-    pixel[2] = r;
-    pixel[3] = 0xFF;
+  for pixel in canvas.as_chunks_mut::<4>().0 {
+    *pixel = [b, g, r, 0xFF];
   }
   surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
   surface
