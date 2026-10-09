@@ -1,4 +1,5 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+use std::hash::{BuildHasher, Hasher};
 
 pub const DEFAULT_SLEEP_SECS: u64 = 4 * 60;
 pub const DEFAULT_ANIMATION_FRAMES: u32 = 20;
@@ -8,7 +9,25 @@ pub const DEFAULT_COLOR: u32 = 0x000000;
 pub struct Config {
   pub sleep_secs: Option<u64>,
   pub animation_frames: Option<u32>,
-  pub color: Option<String>,
+  #[serde(default, deserialize_with = "one_or_many")]
+  pub color: Option<Vec<String>>,
+}
+
+// `color` accepts a single hex string or an array of them
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OneOrMany {
+  One(String),
+  Many(Vec<String>),
+}
+
+fn one_or_many<'de, D: Deserializer<'de>>(
+  d: D,
+) -> Result<Option<Vec<String>>, D::Error> {
+  Ok(Option::<OneOrMany>::deserialize(d)?.map(|v| match v {
+    OneOrMany::One(s) => vec![s],
+    OneOrMany::Many(v) => v,
+  }))
 }
 
 impl Config {
@@ -46,17 +65,39 @@ impl Config {
     self.animation_frames.unwrap_or(DEFAULT_ANIMATION_FRAMES)
   }
 
-  pub fn color(&self) -> u32 {
-    self
+  // valid colors from config, or the default when none are valid
+  pub fn colors(&self) -> Vec<u32> {
+    let colors: Vec<u32> = self
       .color
-      .as_deref()
-      .map(|s| {
-        parse_color(s).unwrap_or_else(|| {
-          eprintln!("augenblick: invalid color '{s}', using default");
-          DEFAULT_COLOR
-        })
+      .iter()
+      .flatten()
+      .filter_map(|s| {
+        let c = parse_color(s);
+        if c.is_none() {
+          eprintln!("augenblick: invalid color '{s}', skipping");
+        }
+        c
       })
-      .unwrap_or(DEFAULT_COLOR)
+      .collect();
+    if colors.is_empty() {
+      vec![DEFAULT_COLOR]
+    } else {
+      colors
+    }
+  }
+
+  // with more than one color, picks one at random on every call
+  pub fn color(&self) -> u32 {
+    let colors = self.colors();
+    if colors.len() == 1 {
+      return colors[0];
+    }
+    // std's RandomState is seeded randomly per process and its keys change on
+    // every new(), which is enough entropy to pick a color without a rand crate
+    let n = std::collections::hash_map::RandomState::new()
+      .build_hasher()
+      .finish();
+    colors[(n % colors.len() as u64) as usize]
   }
 }
 
@@ -69,7 +110,7 @@ pub fn parse_color(s: &str) -> Option<u32> {
 pub struct CliOverrides {
   pub sleep_secs: Option<u64>,
   pub animation_frames: Option<u32>,
-  pub color: Option<String>,
+  pub color: Option<Vec<String>>,
 }
 
 pub struct Args {
@@ -111,7 +152,8 @@ pub fn parse_args() -> Result<Args, String> {
         );
       }
       "--color" => {
-        overrides.color = Some(args.next().ok_or("--color requires a value")?);
+        let v = args.next().ok_or("--color requires a value")?;
+        overrides.color.get_or_insert_with(Vec::new).push(v);
       }
       "--version" | "-V" => {
         println!("augenblick {}", env!("CARGO_PKG_VERSION"));
@@ -126,7 +168,8 @@ pub fn parse_args() -> Result<Args, String> {
           "  -n <n>                  number of blinks, then exit (default: run forever)\n",
           "  --sleep_secs <n>        seconds between blinks (default: 240)\n",
           "  --animation_frames <n>  frames per eyelid sweep (default: 20)\n",
-          "  --color <hex>           eyelid color, e.g. #ff0000 (default: #000000)\n",
+          "  --color <hex>           eyelid color, e.g. #ff0000 (default: #000000);\n",
+          "                          repeatable, each blink picks one at random\n",
           "  -V, --version           print version\n",
           "  -h, --help              show this help",
         ));

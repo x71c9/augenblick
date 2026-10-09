@@ -31,11 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   };
 
+  let colors: Vec<String> =
+    cfg.colors().iter().map(|c| format!("#{c:06X}")).collect();
   println!(
-    "augenblick: blink every {} seconds, animation {} frames, color #{:06X}",
+    "augenblick: blink every {} seconds, animation {} frames, color {}",
     cfg.sleep_secs(),
     cfg.animation_frames(),
-    cfg.color(),
+    colors.join(" "),
   );
 
   let mut blinks: u64 = 0;
