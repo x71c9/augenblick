@@ -14,7 +14,7 @@ tag-message = "chore(release): v{{version}}"
 pre-release-commit-message = "chore(release): release v{{version}}"
 
 [dependencies]
-x11rb = { version = "0.13", features = ["allow-unsafe-code", "shape"] }
+x11rb = { version = "0.13", features = ["allow-unsafe-code", "shape", "render"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 

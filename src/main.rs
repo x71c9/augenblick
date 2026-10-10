@@ -34,9 +34,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let colors: Vec<String> =
     cfg.colors().iter().map(|c| format!("#{c:06X}")).collect();
   println!(
-    "augenblick: blink every {} seconds, animation {} frames, color {}",
+    "augenblick: blink every {} seconds, movement {}, animation {} frames, hold {} ms, fade {} ms, color {}",
     cfg.sleep_secs(),
+    cfg.movement().name(),
     cfg.animation_frames(),
+    backend::hold(&cfg).as_millis(),
+    cfg.fade().as_millis(),
     colors.join(" "),
   );
 
