@@ -4,6 +4,34 @@ use std::hash::{BuildHasher, Hasher};
 pub const DEFAULT_SLEEP_SECS: u64 = 4 * 60;
 pub const DEFAULT_ANIMATION_FRAMES: u32 = 20;
 pub const DEFAULT_COLOR: u32 = 0x000000;
+pub const DEFAULT_MOVEMENT: Movement = Movement::Blink;
+// fade in/out length in ms, 0 disables fading
+pub const DEFAULT_FADE_MS: u64 = 0;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Movement {
+  // two lids sweep in from the top and bottom edges and meet in the middle
+  Blink,
+  // the whole screen is covered at once and held, no sweep
+  Fill,
+}
+
+impl Movement {
+  pub fn parse(s: &str) -> Option<Self> {
+    match s {
+      "blink" => Some(Self::Blink),
+      "fill" => Some(Self::Fill),
+      _ => None,
+    }
+  }
+
+  pub fn name(self) -> &'static str {
+    match self {
+      Self::Blink => "blink",
+      Self::Fill => "fill",
+    }
+  }
+}
 
 #[derive(Deserialize, Default)]
 pub struct Config {
@@ -11,6 +39,9 @@ pub struct Config {
   pub animation_frames: Option<u32>,
   #[serde(default, deserialize_with = "one_or_many")]
   pub color: Option<Vec<String>>,
+  pub movement: Option<String>,
+  pub fade: Option<u64>,
+  pub hold: Option<u64>,
 }
 
 // `color` accepts a single hex string or an array of them
@@ -55,6 +86,15 @@ impl Config {
     if let Some(ref v) = overrides.color {
       self.color = Some(v.clone());
     }
+    if let Some(ref v) = overrides.movement {
+      self.movement = Some(v.clone());
+    }
+    if let Some(v) = overrides.fade {
+      self.fade = Some(v);
+    }
+    if let Some(v) = overrides.hold {
+      self.hold = Some(v);
+    }
   }
 
   pub fn sleep_secs(&self) -> u64 {
@@ -63,6 +103,31 @@ impl Config {
 
   pub fn animation_frames(&self) -> u32 {
     self.animation_frames.unwrap_or(DEFAULT_ANIMATION_FRAMES)
+  }
+
+  // fade in and fade out length; zero means no fade
+  pub fn fade(&self) -> std::time::Duration {
+    std::time::Duration::from_millis(self.fade.unwrap_or(DEFAULT_FADE_MS))
+  }
+
+  // time the screen stays fully covered, when set. The default depends on
+  // the movement, see backend::hold
+  pub fn hold(&self) -> Option<std::time::Duration> {
+    self.hold.map(std::time::Duration::from_millis)
+  }
+
+  // movement from config, or the default when missing or invalid
+  pub fn movement(&self) -> Movement {
+    match self.movement.as_deref() {
+      None => DEFAULT_MOVEMENT,
+      Some(s) => Movement::parse(s).unwrap_or_else(|| {
+        eprintln!(
+          "augenblick: invalid movement '{s}', using {}",
+          DEFAULT_MOVEMENT.name()
+        );
+        DEFAULT_MOVEMENT
+      }),
+    }
   }
 
   // valid colors from config, or the default when none are valid
@@ -111,6 +176,9 @@ pub struct CliOverrides {
   pub sleep_secs: Option<u64>,
   pub animation_frames: Option<u32>,
   pub color: Option<Vec<String>>,
+  pub movement: Option<String>,
+  pub fade: Option<u64>,
+  pub hold: Option<u64>,
 }
 
 pub struct Args {
@@ -155,6 +223,25 @@ pub fn parse_args() -> Result<Args, String> {
         let v = args.next().ok_or("--color requires a value")?;
         overrides.color.get_or_insert_with(Vec::new).push(v);
       }
+      "--fade" => {
+        let v = args.next().ok_or("--fade requires a value")?;
+        overrides.fade =
+          Some(v.parse().map_err(|_| "--fade must be a number")?);
+      }
+      "--hold" => {
+        let v = args.next().ok_or("--hold requires a value")?;
+        overrides.hold =
+          Some(v.parse().map_err(|_| "--hold must be a number")?);
+      }
+      "--movement" => {
+        let v = args.next().ok_or("--movement requires a value")?;
+        if Movement::parse(&v).is_none() {
+          return Err(format!(
+            "--movement must be 'blink' or 'fill', got '{v}'"
+          ));
+        }
+        overrides.movement = Some(v);
+      }
       "--version" | "-V" => {
         println!("augenblick {}", env!("CARGO_PKG_VERSION"));
         std::process::exit(0);
@@ -170,6 +257,11 @@ pub fn parse_args() -> Result<Args, String> {
           "  --animation_frames <n>  frames per eyelid sweep (default: 20)\n",
           "  --color <hex>           eyelid color, e.g. #ff0000 (default: #000000);\n",
           "                          repeatable, each blink picks one at random\n",
+          "  --movement <name>       blink: lids sweep in from top and bottom (default);\n",
+          "                          fill: the whole screen is covered at once, no sweep\n",
+          "  --fade <ms>             fade in and out over this many milliseconds (default: 0, off)\n",
+          "  --hold <ms>             time the screen stays fully covered\n",
+          "                          (default: 150 for blink, the length of a blink for fill)\n",
           "  -V, --version           print version\n",
           "  -h, --help              show this help",
         ));
