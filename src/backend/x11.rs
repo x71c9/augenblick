@@ -57,11 +57,19 @@ fn root_pict_format(
 }
 
 // Fading works without a compositor: the screen is copied into a pixmap
-// before any overlay is shown, and each frame the overlay is repainted with
+// before any overlay is shown, and each frame is composed off screen from
 // that snapshot and the color blended over it (XRender OVER) at the current
 // alpha. Everything stays server-side, so no pixels cross the socket.
+//
+// Without a compositor a window is drawn straight into the scanned-out
+// framebuffer, so each frame must reach it as a single copy: drawing the
+// snapshot and the color there separately lets the display scan out the
+// uncolored snapshot in between, seen as a band rolling over the overlay.
 struct Fader {
   snapshot: Pixmap,
+  // where the frame is composed before being copied to the overlay
+  back: Pixmap,
+  back_picture: render::Picture,
   gc: Gcontext,
 }
 
@@ -72,9 +80,19 @@ impl Fader {
     w: u16,
     h: u16,
   ) -> Result<Self, Box<dyn std::error::Error>> {
+    let format = root_pict_format(conn, screen)?;
     let snapshot: Pixmap = conn.generate_id()?;
+    let back: Pixmap = conn.generate_id()?;
+    let back_picture: render::Picture = conn.generate_id()?;
     let gc: Gcontext = conn.generate_id()?;
     conn.create_pixmap(screen.root_depth, snapshot, screen.root, w, h)?;
+    conn.create_pixmap(screen.root_depth, back, screen.root, w, h)?;
+    conn.render_create_picture(
+      back_picture,
+      back,
+      format,
+      &render::CreatePictureAux::new(),
+    )?;
     // IncludeInferiors: a copy from the root window otherwise skips every
     // child window, i.e. the whole desktop, and yields just the background
     conn.create_gc(
@@ -83,13 +101,48 @@ impl Fader {
       &CreateGCAux::new().subwindow_mode(SubwindowMode::INCLUDE_INFERIORS),
     )?;
     conn.copy_area(screen.root, snapshot, gc, 0, 0, 0, 0, w, h)?;
-    Ok(Self { snapshot, gc })
+    Ok(Self {
+      snapshot,
+      back,
+      back_picture,
+      gc,
+    })
+  }
+
+  // composes the screen area at row `y` with `color` on top, then copies the
+  // finished frame to the window in one operation
+  fn present(
+    &self,
+    conn: &impl Connection,
+    win: Window,
+    color: render::Color,
+    y: i16,
+    w: u16,
+    h: u16,
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    let rect = Rectangle {
+      x: 0,
+      y,
+      width: w,
+      height: h,
+    };
+    conn.copy_area(self.snapshot, self.back, self.gc, 0, y, 0, y, w, h)?;
+    conn.render_fill_rectangles(
+      PictOp::OVER,
+      self.back_picture,
+      color,
+      &[rect],
+    )?;
+    conn.copy_area(self.back, win, self.gc, 0, y, 0, 0, w, h)?;
+    Ok(())
   }
 
   fn destroy(
     &self,
     conn: &impl Connection,
   ) -> Result<(), Box<dyn std::error::Error>> {
+    conn.render_free_picture(self.back_picture)?;
+    conn.free_pixmap(self.back)?;
     conn.free_pixmap(self.snapshot)?;
     conn.free_gc(self.gc)?;
     Ok(())
@@ -112,7 +165,6 @@ fn render_color(color: u32, alpha: f32) -> render::Color {
 struct Overlay {
   win: Window,
   gc: Gcontext,
-  picture: render::Picture,
   color: u32,
 }
 
@@ -128,24 +180,19 @@ impl Overlay {
     h: u16,
     alpha: f32,
   ) -> Result<(), Box<dyn std::error::Error>> {
-    let rect = Rectangle {
-      x: 0,
-      y: 0,
-      width: w,
-      height: h,
-    };
     match fader {
       None => {
+        let rect = Rectangle {
+          x: 0,
+          y: 0,
+          width: w,
+          height: h,
+        };
         conn.poly_fill_rectangle(self.win, self.gc, &[rect])?;
       }
       Some(f) => {
-        conn.copy_area(f.snapshot, self.win, f.gc, 0, y, 0, 0, w, h)?;
-        conn.render_fill_rectangles(
-          PictOp::OVER,
-          self.picture,
-          render_color(self.color, alpha),
-          &[rect],
-        )?;
+        let color = render_color(self.color, alpha);
+        f.present(conn, self.win, color, y, w, h)?;
       }
     }
     Ok(())
@@ -155,7 +202,6 @@ impl Overlay {
     &self,
     conn: &impl Connection,
   ) -> Result<(), Box<dyn std::error::Error>> {
-    conn.render_free_picture(self.picture)?;
     conn.destroy_window(self.win)?;
     conn.free_gc(self.gc)?;
     Ok(())
@@ -167,14 +213,12 @@ impl Overlay {
 fn make_overlay(
   conn: &impl Connection,
   screen: &Screen,
-  format: Pictformat,
   w: u16,
   h: u16,
   color: u32,
 ) -> Result<Overlay, Box<dyn std::error::Error>> {
   let win: Window = conn.generate_id()?;
   let gc: Gcontext = conn.generate_id()?;
-  let picture: render::Picture = conn.generate_id()?;
 
   conn.create_window(
     COPY_FROM_PARENT as u8,
@@ -193,12 +237,6 @@ fn make_overlay(
   )?;
 
   conn.create_gc(gc, win, &CreateGCAux::new().foreground(color))?;
-  conn.render_create_picture(
-    picture,
-    win,
-    format,
-    &render::CreatePictureAux::new(),
-  )?;
 
   // Empty input shape: the window is purely visual and never receives
   // clicks or keyboard input, so it can't steal or disturb window focus.
@@ -223,12 +261,7 @@ fn make_overlay(
     &[net_wm_window_type_notification],
   )?;
 
-  Ok(Overlay {
-    win,
-    gc,
-    picture,
-    color,
-  })
+  Ok(Overlay { win, gc, color })
 }
 
 fn blink_x11(
@@ -242,7 +275,6 @@ fn blink_x11(
   let color = cfg.color();
   let fade = cfg.fade();
   let hold = super::hold(cfg);
-  let format = root_pict_format(conn, screen)?;
 
   // the snapshot must be taken before any overlay is mapped
   let fader = if fade.is_zero() {
@@ -251,8 +283,8 @@ fn blink_x11(
     Some(Fader::new(conn, screen, w, h)?)
   };
 
-  let top = make_overlay(conn, screen, format, w, 1, color)?;
-  let bot = make_overlay(conn, screen, format, w, 1, color)?;
+  let top = make_overlay(conn, screen, w, 1, color)?;
+  let bot = make_overlay(conn, screen, w, 1, color)?;
 
   let lids = Lids {
     top,
@@ -310,14 +342,13 @@ fn fill_x11(
   let color = cfg.color();
   let fade = cfg.fade();
   let hold = super::hold(cfg);
-  let format = root_pict_format(conn, screen)?;
 
   let fader = if fade.is_zero() {
     None
   } else {
     Some(Fader::new(conn, screen, w, h)?)
   };
-  let full = make_overlay(conn, screen, format, w, h, color)?;
+  let full = make_overlay(conn, screen, w, h, color)?;
 
   full.paint(conn, fader.as_ref(), 0, w, h, 0.0)?;
   conn.map_window(full.win)?;
