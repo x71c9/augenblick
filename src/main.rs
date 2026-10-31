@@ -53,6 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       break;
     }
     thread::sleep(Duration::from_secs(cfg.sleep_secs()));
+    // re-read before every blink, so config changes apply without a restart
+    cfg = Config::load(&config_path);
+    cfg.apply_overrides(&overrides);
   }
 
   Ok(())
