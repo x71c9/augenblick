@@ -317,13 +317,13 @@ fn fill_wayland(cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
 fn blink_wayland(cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
   let g = connect()?;
 
-  // top lid: anchored to the top edge, full width, starts at 1px
+  // starts full-screen so the configure reports the real output height
   let top = make_surface(
     &g,
     "augenblick-top",
-    Anchor::TOP | Anchor::LEFT | Anchor::RIGHT,
+    Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT,
   );
-  top.set_size(0, 1);
+  top.set_size(0, 0);
   top.commit();
 
   // bottom lid: anchored to the bottom edge
@@ -368,6 +368,11 @@ fn blink_wayland(cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
   let w = state.screen_w;
   let h = state.screen_h;
   let half_h = h / 2;
+  state
+    .top
+    .as_ref()
+    .expect("top lid")
+    .set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
   let frames = state.frames;
   let color = state.color;
   let fade = cfg.fade();
