@@ -5,12 +5,10 @@ pkgs.mkShell {
     pkgs.rustc
     pkgs.rustfmt
     pkgs.clippy
-    pkgs.cargo-release
     pkgs.libxcb
   ];
   shellHook = ''
     export PATH="$PWD/scripts:$PATH"
-    bash scripts/fetch-rebase
     echo "cargo: $(cargo -V) | rustc: $(rustc -V)"
     echo "rustfmt: $(rustfmt --version) | clippy: $(cargo clippy --version)"
   '';

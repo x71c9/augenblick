@@ -295,7 +295,7 @@ fn blink_x11(
     bot,
     w,
     h,
-    half_h: h / 2,
+    half_h: h.div_ceil(2),
     fade,
     total: blink_duration(frames, hold),
     start: Instant::now(),
@@ -406,7 +406,9 @@ impl Lids {
     lid: u16,
   ) -> Result<(), Box<dyn std::error::Error>> {
     let alpha = fade_alpha(self.start.elapsed(), self.total, self.fade);
-    let bot_y = self.h - lid;
+    // on odd heights the top lid takes the middle row
+    let bot_lid = lid.min(self.h / 2).max(1);
+    let bot_y = self.h - bot_lid;
 
     conn.configure_window(
       self.top.win,
@@ -416,11 +418,13 @@ impl Lids {
 
     conn.configure_window(
       self.bot.win,
-      &ConfigureWindowAux::new().y(bot_y as i32).height(lid as u32),
+      &ConfigureWindowAux::new()
+        .y(bot_y as i32)
+        .height(bot_lid as u32),
     )?;
     self
       .bot
-      .paint(conn, fader, bot_y as i16, self.w, lid, alpha)?;
+      .paint(conn, fader, bot_y as i16, self.w, bot_lid, alpha)?;
     Ok(())
   }
 }
