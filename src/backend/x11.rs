@@ -23,7 +23,11 @@ impl X11Backend {
 
 impl super::Backend for X11Backend {
   fn blink(&self, cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
-    let screen = self.conn.setup().roots[self.screen_num].clone();
+    let mut screen = self.conn.setup().roots[self.screen_num].clone();
+    // setup() is a snapshot from connect time: read the current root size
+    let root = self.conn.get_geometry(screen.root)?.reply()?;
+    screen.width_in_pixels = root.width;
+    screen.height_in_pixels = root.height;
     match cfg.movement() {
       Movement::Blink => blink_x11(&self.conn, &screen, cfg),
       Movement::Fill => fill_x11(&self.conn, &screen, cfg),
