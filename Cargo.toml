@@ -2,6 +2,7 @@
 name = "augenblick"
 version = "0.5.4"
 edition = "2024"
+rust-version = "1.88"
 license = "MIT"
 description = "Fullscreen eye-blink overlay for X11 and Wayland"
 repository = "https://github.com/x71c9/augenblick"
