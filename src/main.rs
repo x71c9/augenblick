@@ -25,6 +25,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut cfg = Config::load(&config_path);
   cfg.apply_overrides(&overrides);
+  let mut warnings = report(&cfg, &config_path, &[]);
 
   let backend: Box<dyn Backend> = match detect()? {
     #[cfg(not(target_os = "macos"))]
@@ -63,7 +64,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     // re-read before every blink, so config changes apply without a restart
     cfg = Config::load(&config_path);
     cfg.apply_overrides(&overrides);
+    warnings = report(&cfg, &config_path, &warnings);
   }
 
   Ok(())
+}
+
+// The config is read again before every blink: its warnings are printed when
+// they differ from the previous read, so the same problem is reported once
+fn report(cfg: &Config, path: &str, previous: &[String]) -> Vec<String> {
+  let warnings = cfg.warnings(path);
+  if warnings != previous {
+    for warning in &warnings {
+      eprintln!("augenblick: {warning}");
+    }
+  }
+  warnings
 }
