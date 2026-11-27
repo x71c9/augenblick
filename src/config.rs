@@ -42,6 +42,9 @@ pub struct Config {
   pub movement: Option<String>,
   pub fade: Option<u64>,
   pub hold: Option<u64>,
+  // why the config file could not be used, reported by warnings()
+  #[serde(skip)]
+  load_error: Option<String>,
 }
 
 // `color` accepts a single hex string or an array of them
@@ -69,11 +72,54 @@ impl Config {
     };
     match toml::from_str(&content) {
       Ok(c) => c,
+      // one line, with the line of the file where parsing stopped
       Err(e) => {
-        eprintln!("augenblick: bad config at {path}: {e}, using defaults");
-        Self::default()
+        let reason = e.message().trim().replace('\n', ", ");
+        let load_error = match e.span() {
+          Some(span) => {
+            let line = content[..span.start].matches('\n').count() + 1;
+            format!("line {line}: {reason}")
+          }
+          None => reason,
+        };
+        Self {
+          load_error: Some(load_error),
+          ..Self::default()
+        }
       }
     }
+  }
+
+  // Problems of the effective configuration, one message each. The getters
+  // fall back to the defaults without printing: main reports these once
+  pub fn warnings(&self, path: &str) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if let Some(e) = &self.load_error {
+      warnings.push(format!(
+        "config {path} is not valid TOML ({e}), using the defaults"
+      ));
+    }
+    if let Some(m) = self.movement.as_deref()
+      && Movement::parse(m).is_none()
+    {
+      warnings.push(format!(
+        "movement \"{m}\" in {path} is not one of \"blink\" or \"fill\", \
+         using \"{}\"",
+        DEFAULT_MOVEMENT.name()
+      ));
+    }
+    let colors: Vec<&String> = self.color.iter().flatten().collect();
+    let invalid: Vec<&&String> =
+      colors.iter().filter(|c| parse_color(c).is_none()).collect();
+    for c in &invalid {
+      warnings.push(format!(
+        "color \"{c}\" is not a hex color such as \"#ff0000\", skipped"
+      ));
+    }
+    if !colors.is_empty() && invalid.len() == colors.len() {
+      warnings.push(format!("no valid color left, using #{DEFAULT_COLOR:06X}"));
+    }
+    warnings
   }
 
   pub fn apply_overrides(&mut self, overrides: &CliOverrides) {
@@ -118,16 +164,11 @@ impl Config {
 
   // movement from config, or the default when missing or invalid
   pub fn movement(&self) -> Movement {
-    match self.movement.as_deref() {
-      None => DEFAULT_MOVEMENT,
-      Some(s) => Movement::parse(s).unwrap_or_else(|| {
-        eprintln!(
-          "augenblick: invalid movement '{s}', using {}",
-          DEFAULT_MOVEMENT.name()
-        );
-        DEFAULT_MOVEMENT
-      }),
-    }
+    self
+      .movement
+      .as_deref()
+      .and_then(Movement::parse)
+      .unwrap_or(DEFAULT_MOVEMENT)
   }
 
   // valid colors from config, or the default when none are valid
@@ -136,13 +177,7 @@ impl Config {
       .color
       .iter()
       .flatten()
-      .filter_map(|s| {
-        let c = parse_color(s);
-        if c.is_none() {
-          eprintln!("augenblick: invalid color '{s}', skipping");
-        }
-        c
-      })
+      .filter_map(|s| parse_color(s))
       .collect();
     if colors.is_empty() {
       vec![DEFAULT_COLOR]
