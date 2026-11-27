@@ -106,6 +106,9 @@ DISPLAY=:0 augenblick
 When XQuartz is missing, not running, or `DISPLAY` is not set, augenblick exits
 with an error that names the case and the command that fixes it.
 
+The overlay covers the whole screen, menu bar and Dock included. `fade` starts
+from black on macOS (see [Config](#config)).
+
 ### Pre-built binaries
 
 Archives for each platform are attached to every release on the
@@ -185,6 +188,10 @@ With `fill`, the fade-in runs before the hold and the fade-out after it, so
 the screen stays covered for `hold` plus twice `fade`. With `blink`, the
 opacity ramps up during the first `fade` ms of the sweep and down during the
 last `fade` ms. Zero (the default) disables fading.
+
+On macOS the fade starts from black instead of from the screen content:
+XQuartz runs rootless, so the X root window that augenblick snapshots does not
+contain the macOS windows.
 
 ```toml
 fade = 300
