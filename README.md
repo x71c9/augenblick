@@ -85,9 +85,26 @@ cargo install augenblick
 
 ### macOS — Homebrew
 
+macOS has no X server of its own: augenblick draws the overlay through
+[XQuartz](https://www.xquartz.org), the X.Org server for macOS. XQuartz is not
+part of macOS since OS X 10.8 and is installed separately (its installer asks
+for the administrator password):
+
 ```bash
+brew install --cask xquartz
 brew install x71c9/x71c9/augenblick
 ```
+
+XQuartz sets `DISPLAY` only for the sessions started after a logout and login.
+Until then, XQuartz is started by hand and `DISPLAY` is passed explicitly:
+
+```bash
+open -a XQuartz
+DISPLAY=:0 augenblick
+```
+
+When XQuartz is missing, not running, or `DISPLAY` is not set, augenblick exits
+with an error that names the case and the command that fixes it.
 
 ### Pre-built binaries
 
@@ -216,12 +233,8 @@ systemctl --user import-environment WAYLAND_DISPLAY DISPLAY
 
 ## Requirements
 
-**Linux:** X11 with `libxcb` installed, or a Wayland compositor that supports `wlr-layer-shell` (Sway, Hyprland and other wlroots-based compositors, KDE Plasma). GNOME does not support it.
+**Linux:** an X11 server, or a Wayland compositor that supports `wlr-layer-shell` (Sway, Hyprland and other wlroots-based compositors, KDE Plasma). GNOME does not support it.
+augenblick speaks the X11 protocol directly and links no X11 library.
 
-**macOS:** [XQuartz](https://www.xquartz.org) must be installed and running. Launch it before running augenblick:
-
-```bash
-open -a XQuartz
-DISPLAY=:0 augenblick
-```
+**macOS:** [XQuartz](https://www.xquartz.org), installed and running; it is not part of macOS. Setup and `DISPLAY` are described in [macOS — Homebrew](#macos--homebrew), and apply to the pre-built binaries too.
 
