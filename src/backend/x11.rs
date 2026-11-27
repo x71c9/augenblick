@@ -16,9 +16,17 @@ pub struct X11Backend {
 
 impl X11Backend {
   pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-    let (conn, screen_num) = x11rb::connect(None)?;
+    let (conn, screen_num) = x11rb::connect(None).map_err(connect_error)?;
     Ok(Self { conn, screen_num })
   }
+}
+
+fn connect_error(error: x11rb::errors::ConnectError) -> String {
+  let display = std::env::var("DISPLAY").unwrap_or_default();
+  #[cfg(target_os = "macos")]
+  return super::xquartz::no_connection(&display, &error);
+  #[cfg(not(target_os = "macos"))]
+  format!("cannot connect to the X server at DISPLAY={display}: {error}")
 }
 
 impl super::Backend for X11Backend {

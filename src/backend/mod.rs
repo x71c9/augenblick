@@ -1,6 +1,8 @@
 #[cfg(not(target_os = "macos"))]
 pub mod wayland;
 pub mod x11;
+#[cfg(target_os = "macos")]
+pub mod xquartz;
 
 use crate::config::{Config, Movement};
 use std::time::Duration;
@@ -61,6 +63,9 @@ pub fn detect() -> Result<DisplayServer, String> {
   if std::env::var("DISPLAY").is_ok() {
     return Ok(DisplayServer::X11);
   }
+  #[cfg(target_os = "macos")]
+  return Err(xquartz::no_display());
+  #[cfg(not(target_os = "macos"))]
   Err(
     "no display found: neither WAYLAND_DISPLAY nor DISPLAY is set".to_string(),
   )

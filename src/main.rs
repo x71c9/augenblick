@@ -6,7 +6,14 @@ use config::{Args, Config, parse_args};
 use std::thread;
 use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+  if let Err(e) = run() {
+    eprintln!("augenblick: {e}");
+    std::process::exit(1);
+  }
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
   let Args {
     config_path,
     overrides,
